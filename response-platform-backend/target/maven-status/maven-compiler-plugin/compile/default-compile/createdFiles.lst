@@ -1,0 +1,9 @@
+com\disaster\responseplatform\config\MongoConfig.class
+com\disaster\responseplatform\ResponsePlatformApplication.class
+com\disaster\responseplatform\model\Report.class
+com\disaster\responseplatform\config\CorsConfig.class
+com\disaster\responseplatform\controller\ReportController.class
+com\disaster\responseplatform\repository\ReportRepository.class
+com\disaster\responseplatform\controller\TestController.class
+com\disaster\responseplatform\dto\ReportDTO.class
+com\disaster\responseplatform\service\ReportService.class
