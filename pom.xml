@@ -57,11 +57,6 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Spatial/Geospatial -->
-        <dependency>
-            <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-spatial</artifactId>
-        </dependency>
 
         <!-- WebClient for Nominatim API -->
         <dependency>

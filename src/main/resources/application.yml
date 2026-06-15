@@ -49,10 +49,10 @@ spring:
       on-profile: prod
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/disaster_response}
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:disaster_response}
     driver-class-name: org.postgresql.Driver
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    username: ${PGUSER:postgres}
+    password: ${PGPASSWORD:postgres}
 
   h2:
     console:
