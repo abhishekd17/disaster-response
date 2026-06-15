@@ -4,6 +4,7 @@ import com.disaster.model.DisasterReport;
 import com.disaster.model.DisasterReport.*;
 import com.disaster.model.GeoSearchRequest;
 import com.disaster.repository.DisasterReportRepository;
+import com.disaster.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -74,7 +75,7 @@ public class DisasterReportService {
 
     public DisasterReport getById(Long id) {
         return repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Report not found: " + id));
+            .orElseThrow(() -> new ResourceNotFoundException("Report not found with id: " + id));
     }
 
     @Transactional

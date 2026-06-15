@@ -1,5 +1,6 @@
 target/
 .idea/
+.vscode/
 *.iml
 .mvn/wrapper/maven-wrapper.jar
 *.class
@@ -8,6 +9,7 @@ target/
 .DS_Store
 /node_modules
 /build
+.env
 .env.local
 .env.development.local
 .env.test.local
