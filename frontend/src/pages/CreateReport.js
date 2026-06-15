@@ -1,5 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
 import { createReport } from '../services/api';
+import 'leaflet/dist/leaflet.css';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+function LocationPicker({ position, setPosition }) {
+  useMapEvents({
+    click(e) {
+      setPosition([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+  return position ? <Marker position={position} /> : null;
+}
 
 function CreateReport() {
   const [form, setForm] = useState({
@@ -7,52 +26,87 @@ function CreateReport() {
     description: '',
     disasterType: 'EARTHQUAKE',
     severity: 'MEDIUM',
-    latitude: '',
-    longitude: '',
     reporterName: '',
     reporterContact: ''
   });
+  const [position, setPosition] = useState(null);
+  const [locationQuery, setLocationQuery] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [searching, setSearching] = useState(false);
+  const mapRef = useRef(null);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage('');
+  const searchLocation = async () => {
+    if (!locationQuery.trim()) return;
+    setSearching(true);
     setError('');
     try {
-      const payload = {
-        ...form,
-        latitude: parseFloat(form.latitude),
-        longitude: parseFloat(form.longitude)
-      };
-      await createReport(payload);
-      setMessage('Report submitted successfully!');
-      setForm({
-        title: '', description: '', disasterType: 'EARTHQUAKE',
-        severity: 'MEDIUM', latitude: '', longitude: '',
-        reporterName: '', reporterContact: ''
-      });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit report');
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationQuery)}&limit=1`
+      );
+      const data = await res.json();
+      if (data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lon = parseFloat(data[0].lon);
+        setPosition([lat, lon]);
+        if (mapRef.current) {
+          mapRef.current.flyTo([lat, lon], 13);
+        }
+      } else {
+        setError('Location not found. Try a different search term.');
+      }
+    } catch {
+      setError('Failed to search location');
     }
+    setSearching(false);
   };
 
   const useMyLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setForm({
-            ...form,
-            latitude: pos.coords.latitude.toFixed(6),
-            longitude: pos.coords.longitude.toFixed(6)
-          });
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setPosition([lat, lng]);
+          if (mapRef.current) {
+            mapRef.current.flyTo([lat, lng], 13);
+          }
         },
-        () => setError('Unable to get your location')
+        () => setError('Unable to get your location. Please allow location access.')
       );
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    setError('');
+
+    if (!position) {
+      setError('Please select a location on the map, search for a place, or use "My Location"');
+      return;
+    }
+
+    try {
+      const payload = {
+        ...form,
+        latitude: position[0],
+        longitude: position[1]
+      };
+      await createReport(payload);
+      setMessage('Report submitted successfully!');
+      setForm({
+        title: '', description: '', disasterType: 'EARTHQUAKE',
+        severity: 'MEDIUM', reporterName: '', reporterContact: ''
+      });
+      setPosition(null);
+      setLocationQuery('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to submit report');
     }
   };
 
@@ -91,20 +145,44 @@ function CreateReport() {
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Latitude *</label>
-              <input name="latitude" type="number" step="any" value={form.latitude} onChange={handleChange} required placeholder="e.g. 28.6139" />
+          <div className="form-group">
+            <label>Location * (search or click on map)</label>
+            <div style={{display: 'flex', gap: '0.5rem'}}>
+              <input
+                value={locationQuery}
+                onChange={e => setLocationQuery(e.target.value)}
+                placeholder="Search: e.g. Patna, Bihar or Koramangala, Bangalore"
+                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchLocation())}
+                style={{flex: 1}}
+              />
+              <button type="button" className="btn btn-secondary" onClick={searchLocation} disabled={searching}>
+                {searching ? '...' : 'Search'}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={useMyLocation}>
+                My Location
+              </button>
             </div>
-            <div className="form-group">
-              <label>Longitude *</label>
-              <input name="longitude" type="number" step="any" value={form.longitude} onChange={handleChange} required placeholder="e.g. 77.2090" />
-            </div>
+            {position && (
+              <small style={{color: '#666', marginTop: '0.3rem', display: 'block'}}>
+                Selected: {position[0].toFixed(4)}, {position[1].toFixed(4)}
+              </small>
+            )}
           </div>
 
-          <button type="button" className="btn btn-secondary" onClick={useMyLocation} style={{marginBottom: '1rem'}}>
-            Use My Location
-          </button>
+          <div style={{height: '300px', borderRadius: '8px', overflow: 'hidden', marginBottom: '1.2rem'}}>
+            <MapContainer
+              center={[22.5, 78.9]}
+              zoom={5}
+              style={{ height: '100%', width: '100%' }}
+              ref={mapRef}
+            >
+              <TileLayer
+                attribution='&copy; OpenStreetMap'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <LocationPicker position={position} setPosition={setPosition} />
+            </MapContainer>
+          </div>
 
           <div className="form-row">
             <div className="form-group">
